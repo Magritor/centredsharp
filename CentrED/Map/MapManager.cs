@@ -159,6 +159,8 @@ public class MapManager
         Tools.Add(new AltitudeGradientTool());
         Tools.Add(new CoastlineTool());
         Tools.Add(new WallTool());
+        Tools.Add(new VegetationBrushTool());
+        Tools.Add(new HouseGeneratorTool());
 
         Tools.ForEach(t => t.PostConstruct(this));
 
