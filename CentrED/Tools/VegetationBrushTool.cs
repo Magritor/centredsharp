@@ -128,7 +128,7 @@ public class VegetationBrushTool : BaseTool
         if (vegetationIds.Count == 0)
             return false;
 
-        var idSet = vegetationIds as HashSet<ushort> ?? vegetationIds.ToHashSet();
+        var idSet = vegetationIds.ToHashSet();
 
         int minX = Math.Max(0, x - _minSpacing);
         int maxX = Math.Min(Client.WidthInTiles - 1, x + _minSpacing);
