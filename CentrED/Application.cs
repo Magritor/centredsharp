@@ -20,6 +20,7 @@ public class Application
         CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
         
         Console.WriteLine($"Root Dir: {WorkDir}");
+        Directory.SetCurrentDirectory(WorkDir);
 
         Config.Initialize();
 
