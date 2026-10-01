@@ -35,8 +35,14 @@ public class HousePreset
     public ushort RoofSlopeBEdgeEndTile { get; set; }
     public ushort RoofRidgeStartTile { get; set; }
     public ushort RoofRidgeEndTile { get; set; }
+    // GableStart/End are the optional peak pieces kept for compatibility.
     public ushort GableStartTile { get; set; }
     public ushort GableEndTile { get; set; }
+    public ushort GableStartSlopeATile { get; set; }
+    public ushort GableStartSlopeBTile { get; set; }
+    public ushort GableEndSlopeATile { get; set; }
+    public ushort GableEndSlopeBTile { get; set; }
+    public int GableZOffset { get; set; }
     public int RoofRiseStep { get; set; } = 3;
     public int RoofOverhang { get; set; }
     public int RoofZOffset { get; set; } = -5;
