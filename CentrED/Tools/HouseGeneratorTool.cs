@@ -68,14 +68,6 @@ public class HouseGeneratorTool : Tool
     private ushort _roofSlopeBEdgeEndTile;
     private ushort _roofRidgeStartTile;
     private ushort _roofRidgeEndTile;
-    private bool _useGablePieces;
-    private ushort _gableStartTile;
-    private ushort _gableEndTile;
-    private ushort _gableStartSlopeATile;
-    private ushort _gableStartSlopeBTile;
-    private ushort _gableEndSlopeATile;
-    private ushort _gableEndSlopeBTile;
-    private int _gableZOffset;
     private int _roofRiseStep = 3;
     private int _roofOverhang;
     private int _roofZOffset = -5;
@@ -321,14 +313,6 @@ public class HouseGeneratorTool : Tool
             RoofSlopeBEdgeEndTile = _roofSlopeBEdgeEndTile,
             RoofRidgeStartTile = _roofRidgeStartTile,
             RoofRidgeEndTile = _roofRidgeEndTile,
-            UseGablePieces = _useGablePieces,
-            GableStartTile = _gableStartTile,
-            GableEndTile = _gableEndTile,
-            GableStartSlopeATile = _gableStartSlopeATile,
-            GableStartSlopeBTile = _gableStartSlopeBTile,
-            GableEndSlopeATile = _gableEndSlopeATile,
-            GableEndSlopeBTile = _gableEndSlopeBTile,
-            GableZOffset = _gableZOffset,
             RoofRiseStep = _roofRiseStep,
             RoofOverhang = _roofOverhang,
             RoofZOffset = _roofZOffset,
@@ -377,14 +361,6 @@ public class HouseGeneratorTool : Tool
         _roofSlopeBEdgeEndTile = preset.RoofSlopeBEdgeEndTile;
         _roofRidgeStartTile = preset.RoofRidgeStartTile;
         _roofRidgeEndTile = preset.RoofRidgeEndTile;
-        _useGablePieces = preset.UseGablePieces;
-        _gableStartTile = preset.GableStartTile;
-        _gableEndTile = preset.GableEndTile;
-        _gableStartSlopeATile = preset.GableStartSlopeATile;
-        _gableStartSlopeBTile = preset.GableStartSlopeBTile;
-        _gableEndSlopeATile = preset.GableEndSlopeATile;
-        _gableEndSlopeBTile = preset.GableEndSlopeBTile;
-        _gableZOffset = preset.GableZOffset;
         _roofRiseStep = preset.RoofRiseStep;
         _roofOverhang = preset.RoofOverhang;
         _roofZOffset = preset.RoofZOffset;
@@ -490,32 +466,6 @@ public class HouseGeneratorTool : Tool
             }
         }
 
-        ImGui.Separator();
-        ImGui.Text("Gable pieces");
-        ImGui.Checkbox("Use custom gable pieces", ref _useGablePieces);
-        ImGui.TextDisabled("Enable only with proper triangular/sloped wall pieces.");
-
-        if (_useGablePieces)
-        {
-            DrawTileSlot("Gable start slope A", ref _gableStartSlopeATile, true);
-            DrawTileSlot("Gable start slope B", ref _gableStartSlopeBTile, true);
-            DrawTileSlot("Gable start peak", ref _gableStartTile, true);
-            DrawTileSlot("Gable end slope A", ref _gableEndSlopeATile, true);
-            DrawTileSlot("Gable end slope B", ref _gableEndSlopeBTile, true);
-            DrawTileSlot("Gable end peak", ref _gableEndTile, true);
-            ImGuiEx.DragInt("Gable Z offset", ref _gableZOffset, 1, -20, 20);
-            ImGui.TextDisabled("Use a negative value if the gable pieces sit too high.");
-
-            if (ImGui.Button("Clear gable pieces"))
-            {
-                _gableStartSlopeATile = 0;
-                _gableStartSlopeBTile = 0;
-                _gableStartTile = 0;
-                _gableEndSlopeATile = 0;
-                _gableEndSlopeBTile = 0;
-                _gableEndTile = 0;
-            }
-        }
     }
 
     public override void OnActivated(TileObject? o)
@@ -947,7 +897,6 @@ public class HouseGeneratorTool : Tool
             }
         }
 
-        AddGableCaps(result, startX, startY, width, depth, roofBaseZ, northSouth);
     }
 
     private ushort SelectSlopeTile(bool sideA, int axisIndex, int axisLength)
@@ -981,60 +930,6 @@ public class HouseGeneratorTool : Tool
         if (axisIndex == axisLength - 1 && _roofRidgeEndTile > 0)
             return _roofRidgeEndTile;
         return _roofRidgeTile;
-    }
-
-    private void AddGableCaps(
-        List<StaticTile> result,
-        int startX,
-        int startY,
-        int width,
-        int depth,
-        int roofBaseZ,
-        bool northSouth)
-    {
-        if (!_useGablePieces)
-            return;
-
-        bool hasStart = _gableStartSlopeATile > 0 || _gableStartSlopeBTile > 0 || _gableStartTile > 0;
-        bool hasEnd = _gableEndSlopeATile > 0 || _gableEndSlopeBTile > 0 || _gableEndTile > 0;
-
-        if (!hasStart && !hasEnd)
-            return;
-
-        int riseStep = Math.Clamp(_roofRiseStep, 1, 10);
-        int slopeSpan = northSouth ? width : depth;
-        int ridgeIndex = slopeSpan / 2;
-        bool hasSingleCenter = slopeSpan % 2 == 1;
-
-        for (int slopeIndex = 0; slopeIndex < slopeSpan; slopeIndex++)
-        {
-            int distanceFromNearEdge = slopeIndex;
-            int distanceFromFarEdge = slopeSpan - 1 - slopeIndex;
-            int riseRows = Math.Min(distanceFromNearEdge, distanceFromFarEdge);
-            sbyte z = ClampZ(roofBaseZ + riseRows * riseStep + _gableZOffset);
-
-            bool isPeak = hasSingleCenter && slopeIndex == ridgeIndex;
-            bool sideA = slopeIndex < ridgeIndex;
-
-            if (hasSingleCenter && slopeIndex == ridgeIndex)
-                sideA = true;
-
-            ushort startTile = isPeak && _gableStartTile > 0
-                ? _gableStartTile
-                : sideA ? _gableStartSlopeATile : _gableStartSlopeBTile;
-
-            ushort endTile = isPeak && _gableEndTile > 0
-                ? _gableEndTile
-                : sideA ? _gableEndSlopeATile : _gableEndSlopeBTile;
-
-            int startCapX = northSouth ? startX + slopeIndex : startX;
-            int startCapY = northSouth ? startY : startY + slopeIndex;
-            int endCapX = northSouth ? startX + slopeIndex : startX + width - 1;
-            int endCapY = northSouth ? startY + depth - 1 : startY + slopeIndex;
-
-            AddIfValid(result, startTile, startCapX, startCapY, z);
-            AddIfValid(result, endTile, endCapX, endCapY, z);
-        }
     }
 
     private bool IsValidMapPosition(int x, int y)
