@@ -29,12 +29,15 @@ public class HousePreset
     public ushort RoofSlopeATile { get; set; }
     public ushort RoofSlopeBTile { get; set; }
     public ushort RoofRidgeTile { get; set; }
+    public bool UseRoofEdgePieces { get; set; }
     public ushort RoofSlopeAEdgeStartTile { get; set; }
     public ushort RoofSlopeAEdgeEndTile { get; set; }
     public ushort RoofSlopeBEdgeStartTile { get; set; }
     public ushort RoofSlopeBEdgeEndTile { get; set; }
     public ushort RoofRidgeStartTile { get; set; }
     public ushort RoofRidgeEndTile { get; set; }
+    public bool UseGablePieces { get; set; }
+
     // GableStart/End are the optional peak pieces kept for compatibility.
     public ushort GableStartTile { get; set; }
     public ushort GableEndTile { get; set; }
