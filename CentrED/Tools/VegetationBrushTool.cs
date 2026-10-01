@@ -13,6 +13,8 @@ public class VegetationBrushTool : BaseTool
     private int _randomZ = 0;
     private bool _avoidWet = true;
     private bool _avoidImpassableLand = true;
+    private bool _avoidOccupiedStatics = true;
+    private int _staticClearance = 0;
 
     private readonly HashSet<(ushort x, ushort y)> _planned = new();
 
@@ -43,6 +45,9 @@ public class VegetationBrushTool : BaseTool
         ImGuiEx.DragInt("Random Z", ref _randomZ, 1, 0, 8);
         ImGui.Checkbox("Avoid water/wet land", ref _avoidWet);
         ImGui.Checkbox("Avoid impassable land", ref _avoidImpassableLand);
+        ImGui.Checkbox("Avoid existing statics", ref _avoidOccupiedStatics);
+        if (_avoidOccupiedStatics)
+            ImGuiEx.DragInt("Static clearance", ref _staticClearance, 1, 0, 6);
 
         ImGui.Separator();
         ImGui.TextWrapped("Ctrl + drag = scatter over an area. Chance controls density. Shift includes lower tiles.");
@@ -75,6 +80,9 @@ public class VegetationBrushTool : BaseTool
             return;
 
         if (_avoidImpassableLand && landData.IsImpassable)
+            return;
+
+        if (_avoidOccupiedStatics && HasNearbyStatics(x, y))
             return;
 
         if (_planned.Contains((x, y)) || HasNearbyVegetation(x, y))
@@ -117,6 +125,26 @@ public class VegetationBrushTool : BaseTool
 
         if (MapManager.StaticsManager.TryGetGhost(land, out var ghost))
             Client.Add(ghost.StaticTile);
+    }
+
+    private bool HasNearbyStatics(ushort x, ushort y)
+    {
+        int clearance = Math.Clamp(_staticClearance, 0, 6);
+        int minX = Math.Max(0, x - clearance);
+        int maxX = Math.Min(Client.WidthInTiles - 1, x + clearance);
+        int minY = Math.Max(0, y - clearance);
+        int maxY = Math.Min(Client.HeightInTiles - 1, y + clearance);
+
+        for (int px = minX; px <= maxX; px++)
+        {
+            for (int py = minY; py <= maxY; py++)
+            {
+                if (MapManager.StaticsManager.Get((ushort)px, (ushort)py).Count > 0)
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     private bool HasNearbyVegetation(ushort x, ushort y)
