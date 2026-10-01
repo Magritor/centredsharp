@@ -601,7 +601,12 @@ public class HouseGeneratorTool : Tool
                 for (int x = 0; x < width; x++)
                 {
                     for (int y = 0; y < depth; y++)
+                    {
+                        if (story > 0 && IsStairOpening(x, y))
+                            continue;
+
                         result.Add(NewTile(_floorTile, startX + x, startY + y, z));
+                    }
                 }
             }
 
@@ -666,6 +671,27 @@ public class HouseGeneratorTool : Tool
             return window;
 
         return wall;
+    }
+
+    private bool IsStairOpening(int localX, int localY)
+    {
+        if (!_withStairs || _stories <= 1 || _stairTile == 0)
+            return false;
+
+        int rise = Math.Clamp(_stairRiseStep, 1, 10);
+        int stepCount = Math.Max(1, (_storyHeight + rise - 1) / rise);
+        var (dx, dy) = GetStairDelta();
+
+        for (int step = 0; step < stepCount; step++)
+        {
+            int x = _stairOffsetX + dx * step;
+            int y = _stairOffsetY + dy * step;
+
+            if (localX == x && localY == y)
+                return true;
+        }
+
+        return false;
     }
 
     private void AddStairs(
