@@ -61,12 +61,14 @@ public class HouseGeneratorTool : Tool
     private ushort _roofSlopeATile;
     private ushort _roofSlopeBTile;
     private ushort _roofRidgeTile;
+    private bool _useRoofEdgePieces;
     private ushort _roofSlopeAEdgeStartTile;
     private ushort _roofSlopeAEdgeEndTile;
     private ushort _roofSlopeBEdgeStartTile;
     private ushort _roofSlopeBEdgeEndTile;
     private ushort _roofRidgeStartTile;
     private ushort _roofRidgeEndTile;
+    private bool _useGablePieces;
     private ushort _gableStartTile;
     private ushort _gableEndTile;
     private ushort _gableStartSlopeATile;
@@ -312,12 +314,14 @@ public class HouseGeneratorTool : Tool
             RoofSlopeATile = _roofSlopeATile,
             RoofSlopeBTile = _roofSlopeBTile,
             RoofRidgeTile = _roofRidgeTile,
+            UseRoofEdgePieces = _useRoofEdgePieces,
             RoofSlopeAEdgeStartTile = _roofSlopeAEdgeStartTile,
             RoofSlopeAEdgeEndTile = _roofSlopeAEdgeEndTile,
             RoofSlopeBEdgeStartTile = _roofSlopeBEdgeStartTile,
             RoofSlopeBEdgeEndTile = _roofSlopeBEdgeEndTile,
             RoofRidgeStartTile = _roofRidgeStartTile,
             RoofRidgeEndTile = _roofRidgeEndTile,
+            UseGablePieces = _useGablePieces,
             GableStartTile = _gableStartTile,
             GableEndTile = _gableEndTile,
             GableStartSlopeATile = _gableStartSlopeATile,
@@ -366,12 +370,14 @@ public class HouseGeneratorTool : Tool
         _roofSlopeATile = preset.RoofSlopeATile;
         _roofSlopeBTile = preset.RoofSlopeBTile;
         _roofRidgeTile = preset.RoofRidgeTile;
+        _useRoofEdgePieces = preset.UseRoofEdgePieces;
         _roofSlopeAEdgeStartTile = preset.RoofSlopeAEdgeStartTile;
         _roofSlopeAEdgeEndTile = preset.RoofSlopeAEdgeEndTile;
         _roofSlopeBEdgeStartTile = preset.RoofSlopeBEdgeStartTile;
         _roofSlopeBEdgeEndTile = preset.RoofSlopeBEdgeEndTile;
         _roofRidgeStartTile = preset.RoofRidgeStartTile;
         _roofRidgeEndTile = preset.RoofRidgeEndTile;
+        _useGablePieces = preset.UseGablePieces;
         _gableStartTile = preset.GableStartTile;
         _gableEndTile = preset.GableEndTile;
         _gableStartSlopeATile = preset.GableStartSlopeATile;
@@ -460,27 +466,56 @@ public class HouseGeneratorTool : Tool
         ImGui.TextDisabled("Negative values lower the roof.");
 
         ImGui.Separator();
-        ImGui.Text("Roof edge pieces (optional)");
-        ImGui.TextDisabled("Used only at the two gable ends of each slope.");
+        ImGui.Text("Roof edge pieces");
+        ImGui.Checkbox("Use custom roof edge pieces", ref _useRoofEdgePieces);
+        ImGui.TextDisabled("Leave this OFF unless you have actual roof-rim/end statics.");
 
-        DrawTileSlot("Slope A edge start", ref _roofSlopeAEdgeStartTile, true);
-        DrawTileSlot("Slope A edge end", ref _roofSlopeAEdgeEndTile, true);
-        DrawTileSlot("Slope B edge start", ref _roofSlopeBEdgeStartTile, true);
-        DrawTileSlot("Slope B edge end", ref _roofSlopeBEdgeEndTile, true);
-        DrawTileSlot("Ridge start", ref _roofRidgeStartTile, true);
-        DrawTileSlot("Ridge end", ref _roofRidgeEndTile, true);
+        if (_useRoofEdgePieces)
+        {
+            DrawTileSlot("Slope A edge start", ref _roofSlopeAEdgeStartTile, true);
+            DrawTileSlot("Slope A edge end", ref _roofSlopeAEdgeEndTile, true);
+            DrawTileSlot("Slope B edge start", ref _roofSlopeBEdgeStartTile, true);
+            DrawTileSlot("Slope B edge end", ref _roofSlopeBEdgeEndTile, true);
+            DrawTileSlot("Ridge start", ref _roofRidgeStartTile, true);
+            DrawTileSlot("Ridge end", ref _roofRidgeEndTile, true);
+
+            if (ImGui.Button("Clear roof edge pieces"))
+            {
+                _roofSlopeAEdgeStartTile = 0;
+                _roofSlopeAEdgeEndTile = 0;
+                _roofSlopeBEdgeStartTile = 0;
+                _roofSlopeBEdgeEndTile = 0;
+                _roofRidgeStartTile = 0;
+                _roofRidgeEndTile = 0;
+            }
+        }
 
         ImGui.Separator();
-        ImGui.Text("Gable pieces (optional)");
-        ImGui.TextDisabled("These fill the two open ends under a gable roof, row by row.");
-        DrawTileSlot("Gable start slope A", ref _gableStartSlopeATile, true);
-        DrawTileSlot("Gable start slope B", ref _gableStartSlopeBTile, true);
-        DrawTileSlot("Gable start peak", ref _gableStartTile, true);
-        DrawTileSlot("Gable end slope A", ref _gableEndSlopeATile, true);
-        DrawTileSlot("Gable end slope B", ref _gableEndSlopeBTile, true);
-        DrawTileSlot("Gable end peak", ref _gableEndTile, true);
-        ImGuiEx.DragInt("Gable Z offset", ref _gableZOffset, 1, -20, 20);
-        ImGui.TextDisabled("Use a negative value if the gable pieces sit too high.");
+        ImGui.Text("Gable pieces");
+        ImGui.Checkbox("Use custom gable pieces", ref _useGablePieces);
+        ImGui.TextDisabled("Enable only with proper triangular/sloped wall pieces.");
+
+        if (_useGablePieces)
+        {
+            DrawTileSlot("Gable start slope A", ref _gableStartSlopeATile, true);
+            DrawTileSlot("Gable start slope B", ref _gableStartSlopeBTile, true);
+            DrawTileSlot("Gable start peak", ref _gableStartTile, true);
+            DrawTileSlot("Gable end slope A", ref _gableEndSlopeATile, true);
+            DrawTileSlot("Gable end slope B", ref _gableEndSlopeBTile, true);
+            DrawTileSlot("Gable end peak", ref _gableEndTile, true);
+            ImGuiEx.DragInt("Gable Z offset", ref _gableZOffset, 1, -20, 20);
+            ImGui.TextDisabled("Use a negative value if the gable pieces sit too high.");
+
+            if (ImGui.Button("Clear gable pieces"))
+            {
+                _gableStartSlopeATile = 0;
+                _gableStartSlopeBTile = 0;
+                _gableStartTile = 0;
+                _gableEndSlopeATile = 0;
+                _gableEndSlopeBTile = 0;
+                _gableEndTile = 0;
+            }
+        }
     }
 
     public override void OnActivated(TileObject? o)
@@ -917,6 +952,9 @@ public class HouseGeneratorTool : Tool
 
     private ushort SelectSlopeTile(bool sideA, int axisIndex, int axisLength)
     {
+        if (!_useRoofEdgePieces)
+            return sideA ? _roofSlopeATile : _roofSlopeBTile;
+
         if (sideA)
         {
             if (axisIndex == 0 && _roofSlopeAEdgeStartTile > 0)
@@ -935,6 +973,9 @@ public class HouseGeneratorTool : Tool
 
     private ushort SelectRidgeTile(int axisIndex, int axisLength)
     {
+        if (!_useRoofEdgePieces)
+            return _roofRidgeTile;
+
         if (axisIndex == 0 && _roofRidgeStartTile > 0)
             return _roofRidgeStartTile;
         if (axisIndex == axisLength - 1 && _roofRidgeEndTile > 0)
@@ -951,6 +992,9 @@ public class HouseGeneratorTool : Tool
         int roofBaseZ,
         bool northSouth)
     {
+        if (!_useGablePieces)
+            return;
+
         bool hasStart = _gableStartSlopeATile > 0 || _gableStartSlopeBTile > 0 || _gableStartTile > 0;
         bool hasEnd = _gableEndSlopeATile > 0 || _gableEndSlopeBTile > 0 || _gableEndTile > 0;
 
