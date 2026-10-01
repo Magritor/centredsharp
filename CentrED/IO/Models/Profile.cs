@@ -17,6 +17,7 @@ public class Profile
     private const string LAND_BRUSH_FILE = "landbrush.json";
     private const string STATIC_FILTER_FILE = "staticfilter.json";
     private const string WALL_SETS_FILE = "wallsets.json";
+    private const string HOUSE_PRESETS_FILE = "housepresets.json";
 
     [JsonIgnore] public string Name { get; set; } = "";
     public string Hostname { get; set; } = "127.0.0.1";
@@ -32,6 +33,7 @@ public class Profile
     [JsonIgnore] public Dictionary<string, LandBrush> LandBrush { get; set; } = new();
     [JsonIgnore] public List<int> StaticFilter { get; set; } = new();
     [JsonIgnore] public Dictionary<string, WallSet> WallSets { get; set; } = new();
+    [JsonIgnore] public Dictionary<string, HousePreset> HousePresets { get; set; } = new();
 
 
     public void Serialize(String path)
@@ -53,6 +55,7 @@ public class Profile
         File.WriteAllText(Path.Join(profileDir, LAND_BRUSH_FILE), JsonSerializer.Serialize(LandBrush, Models.LandBrush.JsonOptions));
         File.WriteAllText(Path.Join(profileDir, STATIC_FILTER_FILE), JsonSerializer.Serialize(StaticFilter, options));
         File.WriteAllText(Path.Join(profileDir, WALL_SETS_FILE), JsonSerializer.Serialize(WallSets, options));
+        File.WriteAllText(Path.Join(profileDir, HOUSE_PRESETS_FILE), JsonSerializer.Serialize(HousePresets, options));
     }
 
     public static Profile? Deserialize(string profileDir)
@@ -93,6 +96,10 @@ public class Profile
         var wallSets = Deserialize<Dictionary<string, WallSet>>(Path.Join(profileDir, WALL_SETS_FILE));
         if (wallSets != null)
             profile.WallSets = wallSets;
+
+        var housePresets = Deserialize<Dictionary<string, HousePreset>>(Path.Join(profileDir, HOUSE_PRESETS_FILE));
+        if (housePresets != null)
+            profile.HousePresets = housePresets;
 
         return profile;
     }
