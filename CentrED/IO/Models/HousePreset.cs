@@ -39,7 +39,7 @@ public class HousePreset
     public ushort GableEndTile { get; set; }
     public int RoofRiseStep { get; set; } = 3;
     public int RoofOverhang { get; set; }
-    public int RoofZOffset { get; set; }
+    public int RoofZOffset { get; set; } = -5;
 
     public bool WithStairs { get; set; }
     public ushort StairTile { get; set; }
