@@ -44,7 +44,11 @@ public class HouseGeneratorTool : Tool
     private int _doorSide = (int)HouseSide.South;
 
     private ushort _floorTile;
+    // Legacy mapping kept for preset compatibility:
+    // _northCornerTile = NW, _southCornerTile = SE.
     private ushort _northCornerTile;
+    private ushort _northEastCornerTile;
+    private ushort _southWestCornerTile;
     private ushort _southCornerTile;
     private ushort _horizontalWallTile;
     private ushort _verticalWallTile;
@@ -67,6 +71,7 @@ public class HouseGeneratorTool : Tool
     private ushort _gableEndTile;
     private int _roofRiseStep = 3;
     private int _roofOverhang;
+    private int _roofZOffset;
 
     private bool _withStairs;
     private ushort _stairTile;
@@ -109,8 +114,10 @@ public class HouseGeneratorTool : Tool
         ImGui.Text("Structure tiles");
         ImGui.TextDisabled("Drag static tiles here from the Tiles window.");
         DrawTileSlot("Floor", ref _floorTile);
-        DrawTileSlot("North corner", ref _northCornerTile, true);
-        DrawTileSlot("South corner", ref _southCornerTile, true);
+        DrawTileSlot("NW corner", ref _northCornerTile, true);
+        DrawTileSlot("NE corner", ref _northEastCornerTile, true);
+        DrawTileSlot("SW corner", ref _southWestCornerTile, true);
+        DrawTileSlot("SE corner", ref _southCornerTile, true);
         DrawTileSlot("Horizontal wall", ref _horizontalWallTile);
         DrawTileSlot("Vertical wall", ref _verticalWallTile);
 
@@ -282,6 +289,8 @@ public class HouseGeneratorTool : Tool
 
             FloorTile = _floorTile,
             NorthCornerTile = _northCornerTile,
+            NorthEastCornerTile = _northEastCornerTile,
+            SouthWestCornerTile = _southWestCornerTile,
             SouthCornerTile = _southCornerTile,
             HorizontalWallTile = _horizontalWallTile,
             VerticalWallTile = _verticalWallTile,
@@ -307,6 +316,7 @@ public class HouseGeneratorTool : Tool
             GableEndTile = _gableEndTile,
             RoofRiseStep = _roofRiseStep,
             RoofOverhang = _roofOverhang,
+            RoofZOffset = _roofZOffset,
 
             WithStairs = _withStairs,
             StairTile = _stairTile,
@@ -328,6 +338,8 @@ public class HouseGeneratorTool : Tool
 
         _floorTile = preset.FloorTile;
         _northCornerTile = preset.NorthCornerTile;
+        _northEastCornerTile = preset.NorthEastCornerTile;
+        _southWestCornerTile = preset.SouthWestCornerTile;
         _southCornerTile = preset.SouthCornerTile;
         _horizontalWallTile = preset.HorizontalWallTile;
         _verticalWallTile = preset.VerticalWallTile;
@@ -353,6 +365,7 @@ public class HouseGeneratorTool : Tool
         _gableEndTile = preset.GableEndTile;
         _roofRiseStep = preset.RoofRiseStep;
         _roofOverhang = preset.RoofOverhang;
+        _roofZOffset = preset.RoofZOffset;
 
         _withStairs = preset.WithStairs;
         _stairTile = preset.StairTile;
@@ -408,6 +421,7 @@ public class HouseGeneratorTool : Tool
         {
             DrawTileSlot("Flat roof", ref _flatRoofTile);
             ImGuiEx.DragInt("Roof overhang", ref _roofOverhang, 1, 0, 2);
+            ImGuiEx.DragInt("Roof Z offset", ref _roofZOffset, 1, -20, 20);
             return;
         }
 
@@ -425,6 +439,7 @@ public class HouseGeneratorTool : Tool
 
         ImGuiEx.DragInt("Roof rise / row", ref _roofRiseStep, 1, 1, 10);
         ImGuiEx.DragInt("Roof overhang", ref _roofOverhang, 1, 0, 2);
+        ImGuiEx.DragInt("Roof Z offset", ref _roofZOffset, 1, -20, 20);
 
         ImGui.Separator();
         ImGui.Text("Roof edge pieces (optional)");
@@ -615,7 +630,7 @@ public class HouseGeneratorTool : Tool
 
         AddStairs(result, startX, startY, baseZ, stories);
 
-        int roofBaseZ = baseZ + stories * _storyHeight;
+        int roofBaseZ = baseZ + stories * _storyHeight + _roofZOffset;
         AddRoof(result, startX, startY, width, depth, roofBaseZ);
 
         return result;
@@ -639,9 +654,14 @@ public class HouseGeneratorTool : Tool
             ushort southId = SelectWallTile(HouseSide.South, x, width, groundFloor, doorOffsetHorizontal);
 
             if (x == 0 && _northCornerTile > 0)
-                northId = _northCornerTile;
-            if (x == width - 1 && _southCornerTile > 0)
-                southId = _southCornerTile;
+                northId = _northCornerTile; // NW
+            else if (x == width - 1 && _northEastCornerTile > 0)
+                northId = _northEastCornerTile; // NE
+
+            if (x == 0 && _southWestCornerTile > 0)
+                southId = _southWestCornerTile; // SW
+            else if (x == width - 1 && _southCornerTile > 0)
+                southId = _southCornerTile; // SE
 
             AddIfValid(result, northId, startX + x, startY, z);
             AddIfValid(result, southId, startX + x, startY + depth - 1, z);
