@@ -16,6 +16,14 @@ public class HouseGeneratorTool : Tool
         East
     }
 
+    private enum RoofType
+    {
+        None,
+        Flat,
+        GableNorthSouth,
+        GableEastWest
+    }
+
     private readonly TilesWindow _tilesWindow;
 
     private int _width = 8;
@@ -33,10 +41,16 @@ public class HouseGeneratorTool : Tool
     private ushort _horizontalWindowTile;
     private ushort _verticalWindowTile;
     private ushort _doorTile;
-    private ushort _roofTile;
+
+    private int _roofType = (int)RoofType.None;
+    private ushort _flatRoofTile;
+    private ushort _roofSlopeATile;
+    private ushort _roofSlopeBTile;
+    private ushort _roofRidgeTile;
+    private int _roofRiseStep = 3;
+    private int _roofOverhang;
 
     private bool _withWindows = true;
-    private bool _withRoof;
     private bool _snapToTerrain = true;
 
     private TileObject? _previewParent;
@@ -85,11 +99,9 @@ public class HouseGeneratorTool : Tool
         ImGui.SameLine();
         ImGui.RadioButton("East", ref _doorSide, (int)HouseSide.East);
 
-        ImGui.Separator();
-        ImGui.Checkbox("Flat roof", ref _withRoof);
-        if (_withRoof)
-            DrawTileSlot("Roof", ref _roofTile, true);
+        DrawRoofConfiguration();
 
+        ImGui.Separator();
         ImGui.Checkbox("Snap base Z to terrain", ref _snapToTerrain);
         if (!_snapToTerrain)
             ImGuiEx.DragInt("Base Z", ref MapManager.VirtualLayerZ, 1, sbyte.MinValue, sbyte.MaxValue);
@@ -97,11 +109,55 @@ public class HouseGeneratorTool : Tool
         ImGui.Separator();
 
         if (!HasAnyStructureTile())
+        {
             ImGui.TextDisabled("Add at least one floor/wall tile to enable preview.");
+        }
+        else if (!IsRoofConfigurationValid())
+        {
+            ImGui.TextDisabled("Roof configuration is incomplete. Add the required roof tiles or select None.");
+        }
         else
+        {
             ImGui.TextWrapped("Move the mouse over the map to preview. Click once to place the complete house as one undo group.");
+        }
 
         ImGui.TextDisabled("Right-click a tile slot to clear it.");
+    }
+
+    private void DrawRoofConfiguration()
+    {
+        ImGui.Separator();
+        ImGui.Text("Roof");
+
+        ImGui.RadioButton("None", ref _roofType, (int)RoofType.None);
+        ImGui.SameLine();
+        ImGui.RadioButton("Flat", ref _roofType, (int)RoofType.Flat);
+
+        ImGui.RadioButton("Gable N-S", ref _roofType, (int)RoofType.GableNorthSouth);
+        ImGui.SameLine();
+        ImGui.RadioButton("Gable E-W", ref _roofType, (int)RoofType.GableEastWest);
+
+        var roofType = (RoofType)_roofType;
+
+        if (roofType == RoofType.Flat)
+        {
+            DrawTileSlot("Flat roof", ref _flatRoofTile);
+            ImGuiEx.DragInt("Roof overhang", ref _roofOverhang, 1, 0, 2);
+        }
+        else if (roofType is RoofType.GableNorthSouth or RoofType.GableEastWest)
+        {
+            ImGui.TextDisabled(
+                roofType == RoofType.GableNorthSouth
+                    ? "Ridge runs North-South; slopes rise from West/East."
+                    : "Ridge runs East-West; slopes rise from North/South.");
+
+            DrawTileSlot("Slope A", ref _roofSlopeATile);
+            DrawTileSlot("Slope B", ref _roofSlopeBTile);
+            DrawTileSlot("Ridge", ref _roofRidgeTile, true);
+
+            ImGuiEx.DragInt("Roof rise / row", ref _roofRiseStep, 1, 1, 10);
+            ImGuiEx.DragInt("Roof overhang", ref _roofOverhang, 1, 0, 2);
+        }
     }
 
     public override void OnActivated(TileObject? o)
@@ -126,7 +182,7 @@ public class HouseGeneratorTool : Tool
 
     public override void OnMousePressed(TileObject? o)
     {
-        if (o == null || !HasAnyStructureTile())
+        if (o == null || !HasAnyStructureTile() || !IsRoofConfigurationValid())
             return;
 
         var tiles = BuildHouse(o.Tile.X, o.Tile.Y, GetBaseZ(o));
@@ -145,7 +201,7 @@ public class HouseGeneratorTool : Tool
     {
         ClearPreview();
 
-        if (o == null || !Client.Running || !HasAnyStructureTile())
+        if (o == null || !Client.Running || !HasAnyStructureTile() || !IsRoofConfigurationValid())
             return;
 
         var tiles = BuildHouse(o.Tile.X, o.Tile.Y, GetBaseZ(o));
@@ -174,6 +230,18 @@ public class HouseGeneratorTool : Tool
         return _floorTile > 0 || _horizontalWallTile > 0 || _verticalWallTile > 0;
     }
 
+    private bool IsRoofConfigurationValid()
+    {
+        return (RoofType)_roofType switch
+        {
+            RoofType.None => true,
+            RoofType.Flat => _flatRoofTile > 0,
+            RoofType.GableNorthSouth or RoofType.GableEastWest =>
+                _roofSlopeATile > 0 && _roofSlopeBTile > 0,
+            _ => false
+        };
+    }
+
     private sbyte GetBaseZ(TileObject o)
     {
         if (!_snapToTerrain)
@@ -194,14 +262,13 @@ public class HouseGeneratorTool : Tool
         int endX = startX + width - 1;
         int endY = startY + depth - 1;
 
-        if (!Client.IsValidX(startX) || !Client.IsValidY(startY) ||
-            !Client.IsValidX(endX) || !Client.IsValidY(endY))
+        if (!IsValidMapPosition(startX, startY) || !IsValidMapPosition(endX, endY))
             return result;
 
         for (int story = 0; story < stories; story++)
         {
             int rawZ = baseZ + story * _storyHeight;
-            sbyte z = (sbyte)Math.Clamp(rawZ, sbyte.MinValue, sbyte.MaxValue);
+            sbyte z = ClampZ(rawZ);
 
             if (_floorTile > 0)
             {
@@ -215,22 +282,20 @@ public class HouseGeneratorTool : Tool
             AddWalls(result, startX, startY, width, depth, z, story == 0);
         }
 
-        if (_withRoof && _roofTile > 0)
-        {
-            int rawRoofZ = baseZ + stories * _storyHeight;
-            sbyte roofZ = (sbyte)Math.Clamp(rawRoofZ, sbyte.MinValue, sbyte.MaxValue);
-
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < depth; y++)
-                    result.Add(NewTile(_roofTile, startX + x, startY + y, roofZ));
-            }
-        }
+        int roofBaseZ = baseZ + stories * _storyHeight;
+        AddRoof(result, startX, startY, width, depth, roofBaseZ);
 
         return result;
     }
 
-    private void AddWalls(List<StaticTile> result, ushort startX, ushort startY, int width, int depth, sbyte z, bool groundFloor)
+    private void AddWalls(
+        List<StaticTile> result,
+        ushort startX,
+        ushort startY,
+        int width,
+        int depth,
+        sbyte z,
+        bool groundFloor)
     {
         int doorOffsetHorizontal = width / 2;
         int doorOffsetVertical = depth / 2;
@@ -273,6 +338,114 @@ public class HouseGeneratorTool : Tool
             return window;
 
         return wall;
+    }
+
+    private void AddRoof(
+        List<StaticTile> result,
+        ushort startX,
+        ushort startY,
+        int width,
+        int depth,
+        int roofBaseZ)
+    {
+        var roofType = (RoofType)_roofType;
+        if (roofType == RoofType.None)
+            return;
+
+        int overhang = Math.Clamp(_roofOverhang, 0, 2);
+        int roofStartX = startX - overhang;
+        int roofStartY = startY - overhang;
+        int roofWidth = width + overhang * 2;
+        int roofDepth = depth + overhang * 2;
+
+        int roofEndX = roofStartX + roofWidth - 1;
+        int roofEndY = roofStartY + roofDepth - 1;
+
+        if (!IsValidMapPosition(roofStartX, roofStartY) || !IsValidMapPosition(roofEndX, roofEndY))
+            return;
+
+        if (roofType == RoofType.Flat)
+        {
+            AddFlatRoof(result, roofStartX, roofStartY, roofWidth, roofDepth, roofBaseZ);
+            return;
+        }
+
+        bool northSouth = roofType == RoofType.GableNorthSouth;
+        AddGableRoof(result, roofStartX, roofStartY, roofWidth, roofDepth, roofBaseZ, northSouth);
+    }
+
+    private void AddFlatRoof(
+        List<StaticTile> result,
+        int startX,
+        int startY,
+        int width,
+        int depth,
+        int roofBaseZ)
+    {
+        sbyte z = ClampZ(roofBaseZ);
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < depth; y++)
+                AddIfValid(result, _flatRoofTile, startX + x, startY + y, z);
+        }
+    }
+
+    private void AddGableRoof(
+        List<StaticTile> result,
+        int startX,
+        int startY,
+        int width,
+        int depth,
+        int roofBaseZ,
+        bool northSouth)
+    {
+        int riseStep = Math.Clamp(_roofRiseStep, 1, 10);
+        int slopeSpan = northSouth ? width : depth;
+        int ridgeIndex = slopeSpan / 2;
+        bool hasSingleCenter = slopeSpan % 2 == 1;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < depth; y++)
+            {
+                int slopeIndex = northSouth ? x : y;
+                int distanceFromNearEdge = slopeIndex;
+                int distanceFromFarEdge = slopeSpan - 1 - slopeIndex;
+                int riseRows = Math.Min(distanceFromNearEdge, distanceFromFarEdge);
+                sbyte z = ClampZ(roofBaseZ + riseRows * riseStep);
+
+                bool isRidge = hasSingleCenter && slopeIndex == ridgeIndex && _roofRidgeTile > 0;
+                if (isRidge)
+                {
+                    AddIfValid(result, _roofRidgeTile, startX + x, startY + y, z);
+                    continue;
+                }
+
+                ushort tileId = slopeIndex < ridgeIndex
+                    ? _roofSlopeATile
+                    : _roofSlopeBTile;
+
+                if (hasSingleCenter && slopeIndex == ridgeIndex && _roofRidgeTile == 0)
+                    tileId = _roofSlopeATile;
+
+                AddIfValid(result, tileId, startX + x, startY + y, z);
+            }
+        }
+    }
+
+    private bool IsValidMapPosition(int x, int y)
+    {
+        return x >= 0 && y >= 0 &&
+               x < Client.WidthInTiles &&
+               y < Client.HeightInTiles &&
+               Client.IsValidX(x) &&
+               Client.IsValidY(y);
+    }
+
+    private static sbyte ClampZ(int z)
+    {
+        return (sbyte)Math.Clamp(z, sbyte.MinValue, sbyte.MaxValue);
     }
 
     private static void AddIfValid(List<StaticTile> result, ushort tileId, int x, int y, sbyte z)
