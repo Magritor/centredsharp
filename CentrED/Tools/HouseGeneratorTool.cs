@@ -1,5 +1,6 @@
 using CentrED.Map;
 using CentrED.UI;
+using CentrED.UI.Windows;
 using Hexa.NET.ImGui;
 using Microsoft.Xna.Framework.Input;
 
@@ -15,6 +16,8 @@ public class HouseGeneratorTool : Tool
         East
     }
 
+    private readonly TilesWindow _tilesWindow;
+
     private int _width = 8;
     private int _depth = 8;
     private int _stories = 1;
@@ -22,15 +25,15 @@ public class HouseGeneratorTool : Tool
     private int _windowSpacing = 3;
     private int _doorSide = (int)HouseSide.South;
 
-    private int _floorTile;
-    private int _northCornerTile;
-    private int _southCornerTile;
-    private int _horizontalWallTile;
-    private int _verticalWallTile;
-    private int _horizontalWindowTile;
-    private int _verticalWindowTile;
-    private int _doorTile;
-    private int _roofTile;
+    private ushort _floorTile;
+    private ushort _northCornerTile;
+    private ushort _southCornerTile;
+    private ushort _horizontalWallTile;
+    private ushort _verticalWallTile;
+    private ushort _horizontalWindowTile;
+    private ushort _verticalWindowTile;
+    private ushort _doorTile;
+    private ushort _roofTile;
 
     private bool _withWindows = true;
     private bool _withRoof;
@@ -38,8 +41,13 @@ public class HouseGeneratorTool : Tool
 
     private TileObject? _previewParent;
 
+    public HouseGeneratorTool()
+    {
+        _tilesWindow = UIManager.GetWindow<TilesWindow>();
+    }
+
     public override string Name => "House generator";
-    public override Keys Shortcut => Keys.F9;
+    public override Keys Shortcut => Keys.None;
 
     internal override void Draw()
     {
@@ -51,22 +59,24 @@ public class HouseGeneratorTool : Tool
 
         ImGui.Separator();
         ImGui.Text("Structure tiles");
-        DrawTileId("Floor", ref _floorTile);
-        DrawTileId("North corner", ref _northCornerTile);
-        DrawTileId("South corner", ref _southCornerTile);
-        DrawTileId("Horizontal wall", ref _horizontalWallTile);
-        DrawTileId("Vertical wall", ref _verticalWallTile);
+        ImGui.TextDisabled("Drag static tiles here from the Tiles window.");
+        DrawTileSlot("Floor", ref _floorTile);
+        DrawTileSlot("North corner", ref _northCornerTile, true);
+        DrawTileSlot("South corner", ref _southCornerTile, true);
+        DrawTileSlot("Horizontal wall", ref _horizontalWallTile);
+        DrawTileSlot("Vertical wall", ref _verticalWallTile);
 
         ImGui.Separator();
         ImGui.Checkbox("Windows", ref _withWindows);
         if (_withWindows)
         {
-            DrawTileId("Horizontal window", ref _horizontalWindowTile);
-            DrawTileId("Vertical window", ref _verticalWindowTile);
+            DrawTileSlot("Horizontal window", ref _horizontalWindowTile, true);
+            DrawTileSlot("Vertical window", ref _verticalWindowTile, true);
             ImGuiEx.DragInt("Window spacing", ref _windowSpacing, 1, 2, 8);
         }
 
-        DrawTileId("Door", ref _doorTile);
+        DrawTileSlot("Door", ref _doorTile, true);
+
         ImGui.Text("Door side");
         ImGui.RadioButton("North", ref _doorSide, (int)HouseSide.North);
         ImGui.SameLine();
@@ -78,14 +88,20 @@ public class HouseGeneratorTool : Tool
         ImGui.Separator();
         ImGui.Checkbox("Flat roof", ref _withRoof);
         if (_withRoof)
-            DrawTileId("Roof tile", ref _roofTile);
+            DrawTileSlot("Roof", ref _roofTile, true);
 
         ImGui.Checkbox("Snap base Z to terrain", ref _snapToTerrain);
         if (!_snapToTerrain)
             ImGuiEx.DragInt("Base Z", ref MapManager.VirtualLayerZ, 1, sbyte.MinValue, sbyte.MaxValue);
 
         ImGui.Separator();
-        ImGui.TextWrapped("Move the mouse over the map to preview. Click once to place the complete house as one undo group.");
+
+        if (!HasAnyStructureTile())
+            ImGui.TextDisabled("Add at least one floor/wall tile to enable preview.");
+        else
+            ImGui.TextWrapped("Move the mouse over the map to preview. Click once to place the complete house as one undo group.");
+
+        ImGui.TextDisabled("Right-click a tile slot to clear it.");
     }
 
     public override void OnActivated(TileObject? o)
@@ -110,7 +126,7 @@ public class HouseGeneratorTool : Tool
 
     public override void OnMousePressed(TileObject? o)
     {
-        if (o == null)
+        if (o == null || !HasAnyStructureTile())
             return;
 
         var tiles = BuildHouse(o.Tile.X, o.Tile.Y, GetBaseZ(o));
@@ -129,7 +145,7 @@ public class HouseGeneratorTool : Tool
     {
         ClearPreview();
 
-        if (o == null || !Client.Running)
+        if (o == null || !Client.Running || !HasAnyStructureTile())
             return;
 
         var tiles = BuildHouse(o.Tile.X, o.Tile.Y, GetBaseZ(o));
@@ -151,6 +167,11 @@ public class HouseGeneratorTool : Tool
             MapManager.StaticsManager.ClearGhost(_previewParent);
 
         _previewParent = null;
+    }
+
+    private bool HasAnyStructureTile()
+    {
+        return _floorTile > 0 || _horizontalWallTile > 0 || _verticalWallTile > 0;
     }
 
     private sbyte GetBaseZ(TileObject o)
@@ -187,9 +208,7 @@ public class HouseGeneratorTool : Tool
                 for (int x = 0; x < width; x++)
                 {
                     for (int y = 0; y < depth; y++)
-                    {
                         result.Add(NewTile(_floorTile, startX + x, startY + y, z));
-                    }
                 }
             }
 
@@ -218,8 +237,8 @@ public class HouseGeneratorTool : Tool
 
         for (int x = 0; x < width; x++)
         {
-            int northId = SelectWallTile(HouseSide.North, x, width, groundFloor, doorOffsetHorizontal);
-            int southId = SelectWallTile(HouseSide.South, x, width, groundFloor, doorOffsetHorizontal);
+            ushort northId = SelectWallTile(HouseSide.North, x, width, groundFloor, doorOffsetHorizontal);
+            ushort southId = SelectWallTile(HouseSide.South, x, width, groundFloor, doorOffsetHorizontal);
 
             if (x == 0 && _northCornerTile > 0)
                 northId = _northCornerTile;
@@ -232,19 +251,19 @@ public class HouseGeneratorTool : Tool
 
         for (int y = 1; y < depth - 1; y++)
         {
-            int westId = SelectWallTile(HouseSide.West, y, depth, groundFloor, doorOffsetVertical);
-            int eastId = SelectWallTile(HouseSide.East, y, depth, groundFloor, doorOffsetVertical);
+            ushort westId = SelectWallTile(HouseSide.West, y, depth, groundFloor, doorOffsetVertical);
+            ushort eastId = SelectWallTile(HouseSide.East, y, depth, groundFloor, doorOffsetVertical);
 
             AddIfValid(result, westId, startX, startY + y, z);
             AddIfValid(result, eastId, startX + width - 1, startY + y, z);
         }
     }
 
-    private int SelectWallTile(HouseSide side, int offset, int sideLength, bool groundFloor, int doorOffset)
+    private ushort SelectWallTile(HouseSide side, int offset, int sideLength, bool groundFloor, int doorOffset)
     {
         bool horizontal = side is HouseSide.North or HouseSide.South;
-        int wall = horizontal ? _horizontalWallTile : _verticalWallTile;
-        int window = horizontal ? _horizontalWindowTile : _verticalWindowTile;
+        ushort wall = horizontal ? _horizontalWallTile : _verticalWallTile;
+        ushort window = horizontal ? _horizontalWindowTile : _verticalWindowTile;
 
         if (groundFloor && _doorTile > 0 && _doorSide == (int)side && offset == doorOffset)
             return _doorTile;
@@ -256,23 +275,59 @@ public class HouseGeneratorTool : Tool
         return wall;
     }
 
-    private static void AddIfValid(List<StaticTile> result, int tileId, int x, int y, sbyte z)
+    private static void AddIfValid(List<StaticTile> result, ushort tileId, int x, int y, sbyte z)
     {
-        if (tileId <= 0 || tileId > ushort.MaxValue)
+        if (tileId == 0)
             return;
 
         result.Add(NewTile(tileId, x, y, z));
     }
 
-    private static StaticTile NewTile(int tileId, int x, int y, sbyte z)
+    private static StaticTile NewTile(ushort tileId, int x, int y, sbyte z)
     {
-        return new StaticTile((ushort)tileId, (ushort)x, (ushort)y, z, 0);
+        return new StaticTile(tileId, (ushort)x, (ushort)y, z, 0);
     }
 
-    private static void DrawTileId(string label, ref int value)
+    private void DrawTileSlot(string label, ref ushort tileId, bool optional = false)
     {
-        ImGuiEx.DragInt(label, ref value, 1, 0, ushort.MaxValue);
+        ImGui.PushID(label);
+        ImGui.Text(label);
+
+        var slotSize = TilesWindow.TilesDimensions;
+        bool rendered = false;
+
+        if (tileId > 0)
+        {
+            try
+            {
+                var tileInfo = _tilesWindow.GetObjectInfo(tileId);
+                if (tileInfo.Texture != null)
+                {
+                    Application.CEDGame.UIManager.DrawImage(tileInfo.Texture, tileInfo.Bounds, slotSize, false);
+                    rendered = true;
+                }
+            }
+            catch
+            {
+                // Invalid/missing art: fall back to a normal button.
+            }
+        }
+
+        if (!rendered)
+        {
+            var buttonLabel = tileId > 0 ? $"0x{tileId:X4}" : optional ? "(optional)" : "drop tile";
+            ImGui.Button(buttonLabel, slotSize);
+        }
+
+        if (ImGuiEx.DragDropTarget(TilesWindow.OBJECT_DRAG_DROP_TYPE, out var ids) && ids.Length > 0)
+            tileId = ids[0];
+
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Right) && tileId > 0)
+            tileId = 0;
+
         ImGui.SameLine();
-        ImGui.TextDisabled($"0x{value:X4}");
+        ImGui.TextDisabled(tileId > 0 ? $"0x{tileId:X4}" : optional ? "optional" : "required");
+
+        ImGui.PopID();
     }
 }
