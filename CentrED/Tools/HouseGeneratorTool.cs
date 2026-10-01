@@ -71,7 +71,7 @@ public class HouseGeneratorTool : Tool
     private ushort _gableEndTile;
     private int _roofRiseStep = 3;
     private int _roofOverhang;
-    private int _roofZOffset;
+    private int _roofZOffset = -5;
 
     private bool _withStairs;
     private ushort _stairTile;
@@ -648,20 +648,12 @@ public class HouseGeneratorTool : Tool
         int doorOffsetHorizontal = width / 2;
         int doorOffsetVertical = depth / 2;
 
-        for (int x = 0; x < width; x++)
+        // Straight wall runs deliberately exclude corners. Corners are handled below,
+        // either by a dedicated corner static or by both wall orientations on the same tile.
+        for (int x = 1; x < width - 1; x++)
         {
             ushort northId = SelectWallTile(HouseSide.North, x, width, groundFloor, doorOffsetHorizontal);
             ushort southId = SelectWallTile(HouseSide.South, x, width, groundFloor, doorOffsetHorizontal);
-
-            if (x == 0 && _northCornerTile > 0)
-                northId = _northCornerTile; // NW
-            else if (x == width - 1 && _northEastCornerTile > 0)
-                northId = _northEastCornerTile; // NE
-
-            if (x == 0 && _southWestCornerTile > 0)
-                southId = _southWestCornerTile; // SW
-            else if (x == width - 1 && _southCornerTile > 0)
-                southId = _southCornerTile; // SE
 
             AddIfValid(result, northId, startX + x, startY, z);
             AddIfValid(result, southId, startX + x, startY + depth - 1, z);
@@ -675,6 +667,65 @@ public class HouseGeneratorTool : Tool
             AddIfValid(result, westId, startX, startY + y, z);
             AddIfValid(result, eastId, startX + width - 1, startY + y, z);
         }
+
+        AddWallCorner(
+            result,
+            _northCornerTile,
+            startX,
+            startY,
+            z,
+            SelectWallTile(HouseSide.North, 0, width, groundFloor, doorOffsetHorizontal),
+            SelectWallTile(HouseSide.West, 0, depth, groundFloor, doorOffsetVertical));
+
+        AddWallCorner(
+            result,
+            _northEastCornerTile,
+            startX + width - 1,
+            startY,
+            z,
+            SelectWallTile(HouseSide.North, width - 1, width, groundFloor, doorOffsetHorizontal),
+            SelectWallTile(HouseSide.East, 0, depth, groundFloor, doorOffsetVertical));
+
+        AddWallCorner(
+            result,
+            _southWestCornerTile,
+            startX,
+            startY + depth - 1,
+            z,
+            SelectWallTile(HouseSide.South, 0, width, groundFloor, doorOffsetHorizontal),
+            SelectWallTile(HouseSide.West, depth - 1, depth, groundFloor, doorOffsetVertical));
+
+        AddWallCorner(
+            result,
+            _southCornerTile,
+            startX + width - 1,
+            startY + depth - 1,
+            z,
+            SelectWallTile(HouseSide.South, width - 1, width, groundFloor, doorOffsetHorizontal),
+            SelectWallTile(HouseSide.East, depth - 1, depth, groundFloor, doorOffsetVertical));
+    }
+
+    private static void AddWallCorner(
+        List<StaticTile> result,
+        ushort dedicatedCornerTile,
+        int x,
+        int y,
+        sbyte z,
+        ushort wallA,
+        ushort wallB)
+    {
+        if (dedicatedCornerTile > 0)
+        {
+            AddIfValid(result, dedicatedCornerTile, x, y, z);
+            return;
+        }
+
+        AddIfValid(result, wallA, x, y, z);
+
+        // Some wall sets do not have a dedicated corner piece. In that case,
+        // overlay the two wall orientations so the rectangle is actually closed.
+        if (wallB != wallA)
+            AddIfValid(result, wallB, x, y, z);
     }
 
     private ushort SelectWallTile(HouseSide side, int offset, int sideLength, bool groundFloor, int doorOffset)
