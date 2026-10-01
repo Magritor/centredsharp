@@ -114,6 +114,7 @@ public class HouseGeneratorTool : Tool
         ImGui.Text("Structure tiles");
         ImGui.TextDisabled("Drag static tiles here from the Tiles window.");
         DrawTileSlot("Floor", ref _floorTile);
+        ImGui.TextDisabled("Corners are optional: empty corners auto-join both wall directions.");
         DrawTileSlot("NW corner", ref _northCornerTile, true);
         DrawTileSlot("NE corner", ref _northEastCornerTile, true);
         DrawTileSlot("SW corner", ref _southWestCornerTile, true);
@@ -422,6 +423,7 @@ public class HouseGeneratorTool : Tool
             DrawTileSlot("Flat roof", ref _flatRoofTile);
             ImGuiEx.DragInt("Roof overhang", ref _roofOverhang, 1, 0, 2);
             ImGuiEx.DragInt("Roof Z offset", ref _roofZOffset, 1, -20, 20);
+            ImGui.TextDisabled("Negative values lower the roof.");
             return;
         }
 
@@ -440,6 +442,7 @@ public class HouseGeneratorTool : Tool
         ImGuiEx.DragInt("Roof rise / row", ref _roofRiseStep, 1, 1, 10);
         ImGuiEx.DragInt("Roof overhang", ref _roofOverhang, 1, 0, 2);
         ImGuiEx.DragInt("Roof Z offset", ref _roofZOffset, 1, -20, 20);
+        ImGui.TextDisabled("Negative values lower the roof.");
 
         ImGui.Separator();
         ImGui.Text("Roof edge pieces (optional)");
