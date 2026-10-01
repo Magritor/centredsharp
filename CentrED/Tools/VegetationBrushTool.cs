@@ -22,7 +22,7 @@ public class VegetationBrushTool : BaseTool
     }
 
     public override string Name => "Vegetation brush";
-    public override Keys Shortcut => Keys.F8;
+    public override Keys Shortcut => Keys.None;
 
     internal override void Draw()
     {
