@@ -10,7 +10,10 @@ public class HousePreset
     public int DoorSide { get; set; } = 1;
 
     public ushort FloorTile { get; set; }
+    // Legacy fields kept for compatibility: NorthCornerTile = NW, SouthCornerTile = SE.
     public ushort NorthCornerTile { get; set; }
+    public ushort NorthEastCornerTile { get; set; }
+    public ushort SouthWestCornerTile { get; set; }
     public ushort SouthCornerTile { get; set; }
     public ushort HorizontalWallTile { get; set; }
     public ushort VerticalWallTile { get; set; }
@@ -36,6 +39,7 @@ public class HousePreset
     public ushort GableEndTile { get; set; }
     public int RoofRiseStep { get; set; } = 3;
     public int RoofOverhang { get; set; }
+    public int RoofZOffset { get; set; }
 
     public bool WithStairs { get; set; }
     public ushort StairTile { get; set; }
